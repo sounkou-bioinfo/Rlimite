@@ -1,0 +1,24 @@
+url: https://sounkou-bioinfo.github.io/Rlimite/
+template:
+  bootstrap: 5
+
+navbar:
+  structure:
+    left: [reference]
+    right: [search, github]
+
+reference:
+  - title: Model configuration and loading
+    contents:
+      - limite_checkpoints
+      - limite_config
+      - limite
+      - limite_from_config
+      - limite_from_pretrained
+      - limite_state_dict
+      - limite_tokenizer
+  - title: Mathematical generation
+    contents:
+      - limite_generate
+      - limite_chat_prompt
+      - limite_chat

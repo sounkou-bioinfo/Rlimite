@@ -1,0 +1,60 @@
+name: real model tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "R/**"
+      - "tools/test-real-model.R"
+      - "DESCRIPTION"
+      - ".github/workflows/real-model.yaml"
+  pull_request:
+    paths:
+      - "R/**"
+      - "tools/test-real-model.R"
+      - "DESCRIPTION"
+      - ".github/workflows/real-model.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-model:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - model: limite-1b-base
+            revision: c55f6dd9741d89b88186235c6d43bff367ae3cb0
+          - model: limite-1b-base-soup
+            revision: 9ade12f28483ec61896427bb983719501325e275
+          - model: limite-1b-violetto
+            revision: e47321c08d6820a0b2491bc8a10381999f2d0cde
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
+      TORCH_INSTALL: 1
+      RLIMITE_MODEL_ID: paradigma-inc/${{ matrix.model }}
+      RLIMITE_MODEL_REVISION: ${{ matrix.revision }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: local::.
+          needs: check
+
+      - name: Cache Hugging Face checkpoint
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: limite-${{ matrix.model }}-${{ matrix.revision }}
+
+      - name: Run native checkpoint test
+        run: Rscript tools/test-real-model.R

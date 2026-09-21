@@ -1,0 +1,7 @@
+^\.github$
+^.*\.Rproj$
+^\.Rproj\.user$
+^AGENTS\.md$
+^Makefile$
+^_pkgdown\.yml$
+^tools$

@@ -1,0 +1,36 @@
+Package: Rlimite
+Title: Native 'torch' Inference for Limite Mathematical Language Models
+Version: 0.1.0
+Authors@R: c(
+    person("Sounkou Mahamane", "Toure", , "sounkoutoure@gmail.com", role = c("aut", "cre")),
+    person("Paradigma contributors", role = c("ctb", "cph"),
+           comment = "Limite architecture")
+  )
+Description: Implements the Limite mathematical language-model
+    architecture <https://github.com/paradigma-inc/limite-violetto>
+    directly with 'torch'.  Loads the published Base, Base Soup, and
+    Violetto 'safetensors' checkpoints and tokenizers from the 'Hugging
+    Face' Hub without a Python runtime or model-serving process. Provides
+    cached autoregressive generation and the official single-turn prompt
+    format used by the math-specialized Violetto checkpoint.
+License: GPL (>= 2)
+URL: https://github.com/sounkou-bioinfo/Rlimite,
+    https://sounkou-bioinfo.github.io/Rlimite
+BugReports: https://github.com/sounkou-bioinfo/Rlimite/issues
+Depends:
+    R (>= 4.1)
+Imports:
+    cli,
+    hfhub (>= 0.1.2),
+    jsonlite,
+    safetensors (>= 0.2.1),
+    tok (>= 0.2.3),
+    torch (>= 0.17.0)
+Suggests:
+    knitr,
+    pkgload,
+    rmarkdown,
+    tinytest
+Config/roxygen2/version: 8.0.0
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
