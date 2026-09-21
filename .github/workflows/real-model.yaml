@@ -39,7 +39,7 @@ jobs:
       RLIMITE_MODEL_ID: paradigma-inc/${{ matrix.model }}
       RLIMITE_MODEL_REVISION: ${{ matrix.revision }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: r-lib/actions/setup-r@v2
         with:
@@ -51,7 +51,7 @@ jobs:
           needs: check
 
       - name: Cache Hugging Face checkpoint
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/huggingface
           key: limite-${{ matrix.model }}-${{ matrix.revision }}
