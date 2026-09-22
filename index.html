@@ -46,78 +46,17 @@
 </nav><div class="container template-home">
 <div class="row">
   <main id="main" class="col-md-9"><div class="section level1">
-<div class="page-header"><h1 id="rlimite">Rlimite<a class="anchor" aria-label="anchor" href="#rlimite"></a>
+<div class="page-header"><h1 id="rlimite-a-math-model-on-the-machine-you-already-have">Rlimite: a math model on the machine you already have<a class="anchor" aria-label="anchor" href="#rlimite-a-math-model-on-the-machine-you-already-have"></a>
 </h1></div>
-<p><a href="https://github.com/sounkou-bioinfo/Rlimite/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/sounkou-bioinfo/Rlimite/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a> <a href="https://github.com/sounkou-bioinfo/Rlimite/actions/workflows/real-model.yaml" class="external-link"><img src="https://github.com/sounkou-bioinfo/Rlimite/actions/workflows/real-model.yaml/badge.svg" alt="Real model tests"></a> <a href="https://sounkou-bioinfo.r-universe.dev/Rlimite" class="external-link"><img src="https://sounkou-bioinfo.r-universe.dev/badges/Rlimite" alt="R-universe"></a> <a href="https://lifecycle.r-lib.org/articles/stages.html#experimental" class="external-link"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental"></a></p>
-<p>Rlimite implements the <a href="https://github.com/paradigma-inc/limite-violetto" class="external-link">Limite</a> decoder architecture directly in R with <a href="https://torch.mlverse.org/" class="external-link"><code>torch</code></a>. It loads the official safetensors and tokenizer assets without Python, vLLM, or a model-serving process.</p>
-<p>Limite 1B - Violetto is a math-specialized, lightly instruction-tuned model for independent single-turn problems. It is not intended to behave like a general chat assistant. The Base and Base Soup checkpoints expose earlier members of the same published model family.</p>
-<div class="section level2">
-<h2 id="published-checkpoints">Published checkpoints<a class="anchor" aria-label="anchor" href="#published-checkpoints"></a>
-</h2>
-<p>The README pins the exact revisions used for its evaluated examples and for the real-model CI matrix.</p>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">checkpoints</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_checkpoints.html">limite_checkpoints</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="va">checkpoints</span><span class="op">)</span></span></code></pre></div>
-<table class="table">
-<colgroup>
-<col width="11%">
-<col width="32%">
-<col width="39%">
-<col width="16%">
-</colgroup>
-<thead><tr>
-<th align="left">checkpoint</th>
-<th align="left">model_id</th>
-<th align="left">revision</th>
-<th align="left">profile</th>
-</tr></thead>
-<tbody>
-<tr>
-<td align="left">Base</td>
-<td align="left">paradigma-inc/limite-1b-base</td>
-<td align="left">c55f6dd9741d89b88186235c6d43bff367ae3cb0</td>
-<td align="left">base</td>
-</tr>
-<tr>
-<td align="left">Base Soup</td>
-<td align="left">paradigma-inc/limite-1b-base-soup</td>
-<td align="left">9ade12f28483ec61896427bb983719501325e275</td>
-<td align="left">base-soup</td>
-</tr>
-<tr>
-<td align="left">Violetto</td>
-<td align="left">paradigma-inc/limite-1b-violetto</td>
-<td align="left">e47321c08d6820a0b2491bc8a10381999f2d0cde</td>
-<td align="left">math-single-turn</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="section level2">
-<h2 id="architecture">Architecture<a class="anchor" aria-label="anchor" href="#architecture"></a>
-</h2>
-<p>The shared checkpoint contract contains 48 decoder layers, grouped-query attention, mixed global and sliding-window layers, and a 131,072-token context limit.</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">config</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_config.html">limite_config</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="va">config</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
-<span>  <span class="st">"vocab_size"</span>,</span>
-<span>  <span class="st">"hidden_size"</span>,</span>
-<span>  <span class="st">"num_hidden_layers"</span>,</span>
-<span>  <span class="st">"num_attention_heads"</span>,</span>
-<span>  <span class="st">"num_key_value_heads"</span>,</span>
-<span>  <span class="st">"max_position_embeddings"</span></span>
-<span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="co">#&gt;              vocab_size             hidden_size       num_hidden_layers</span></span>
-<span><span class="co">#&gt;                  151680                    1280                      48</span></span>
-<span><span class="co">#&gt;     num_attention_heads     num_key_value_heads max_position_embeddings</span></span>
-<span><span class="co">#&gt;                      10                       2                  131072</span></span></code></pre></div>
-<p>The implementation includes partial interleaved RoPE, NoPE global layers, value embeddings, per-head attention gates, cross-stream attention, MUDD history mixing, learned residual coefficients, projection-scale folding, sigmoid-softcapped logits, and bounded local-layer key/value caches.</p>
-</div>
+<!-- badges: start -->
+
+<p><strong>One package, one argument: a trained model is a file, and a file is enough. Solving a mathematical problem should not require a Python interpreter, a serving process, or a second copy of the weights in another runtime.</strong></p>
+<p>Rlimite implements the <a href="https://github.com/paradigma-inc/limite-violetto" class="external-link">Limite</a> decoder architecture directly in R with <a href="https://torch.mlverse.org/" class="external-link"><code>torch</code></a>. The published safetensors and tokenizer are read where they already live, in the Hugging Face cache, and executed in the calling R session. There is no <code>reticulate</code> bridge, no vLLM, no model server, and no network round-trip per prompt. After the first download the machine in front of you is the whole system, on CPU or on GPU.</p>
+<p>Limite 1B - Violetto is math-specialized and lightly instruction-tuned for independent single-turn problems. It is a solver, not a general chat assistant, and this README does not pretend otherwise. Base and Base Soup are earlier checkpoints of the same published family and are shown here doing what they actually do.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>Install Rlimite from R-universe with:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span></span>
 <span>  <span class="st">"Rlimite"</span>,</span>
 <span>  repos <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
@@ -125,103 +64,217 @@
 <span>    <span class="st">"https://cloud.r-project.org"</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Rlimite requires <a href="https://torch.mlverse.org/docs" class="external-link">torch</a> with its LibTorch runtime, <a href="https://github.com/mlverse/safetensors" class="external-link">safetensors</a>, <a href="https://mlverse.github.io/hfhub/" class="external-link">hfhub</a>, and <a href="https://github.com/mlverse/tok" class="external-link">tok</a>. A CUDA-enabled LibTorch installation is recommended, but all examples below are evaluated on CPU. Each published BF16 checkpoint is about 2.08 GB before runtime activations and caches.</p>
+<p>Rlimite needs <a href="https://torch.mlverse.org/docs" class="external-link">torch</a> with its LibTorch runtime, plus <a href="https://github.com/mlverse/safetensors" class="external-link">safetensors</a>, <a href="https://mlverse.github.io/hfhub/" class="external-link">hfhub</a> and <a href="https://github.com/mlverse/tok" class="external-link">tok</a>. Each published BF16 checkpoint is about 2.08 GB on disk, before activations and caches.</p>
 </div>
 <div class="section level2">
-<h2 id="verify-all-three-checkpoints">Verify all three checkpoints<a class="anchor" aria-label="anchor" href="#verify-all-three-checkpoints"></a>
+<h2 id="a-file-and-a-tokenizer-are-enough">A file and a tokenizer are enough<a class="anchor" aria-label="anchor" href="#a-file-and-a-tokenizer-are-enough"></a>
 </h2>
-<p>This chunk loads every pinned checkpoint and begins the same mathematical problem with eight greedy tokens. It reports runtime-contract checks rather than comparing the quality of differently trained checkpoints.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">problem</span> <span class="op">&lt;-</span> <span class="st">"Compute 17 * 23. Show your reasoning."</span></span>
-<span><span class="va">messages</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>role <span class="op">=</span> <span class="st">"user"</span>, content <span class="op">=</span> <span class="va">problem</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">checks</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  checkpoint <span class="op">=</span> <span class="va">checkpoints</span><span class="op">$</span><span class="va">checkpoint</span>,</span>
-<span>  generated_tokens <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">integer</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">checkpoints</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  valid_token_ids <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/logical.html" class="external-link">logical</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">checkpoints</span><span class="op">)</span><span class="op">)</span></span>
+<p>Every example below is evaluated when this README is rendered, against the pinned revisions in <code><a href="reference/limite_checkpoints.html">limite_checkpoints()</a></code>. Nothing on this page is a transcript written by hand.</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/sounkou-bioinfo/Rlimite" class="external-link">Rlimite</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">violetto</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset</a></span><span class="op">(</span><span class="fu"><a href="reference/limite_checkpoints.html">limite_checkpoints</a></span><span class="op">(</span><span class="op">)</span>, <span class="va">checkpoint</span> <span class="op">==</span> <span class="st">"Violetto"</span><span class="op">)</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_from_pretrained.html">limite_from_pretrained</a></span><span class="op">(</span></span>
+<span>  <span class="va">violetto</span><span class="op">$</span><span class="va">model_id</span>,</span>
+<span>  revision <span class="op">=</span> <span class="va">violetto</span><span class="op">$</span><span class="va">revision</span>,</span>
+<span>  device <span class="op">=</span> <span class="va">device</span></span>
 <span><span class="op">)</span></span>
+<span><span class="va">tokenizer</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_tokenizer.html">limite_tokenizer</a></span><span class="op">(</span><span class="va">violetto</span><span class="op">$</span><span class="va">model_id</span>, revision <span class="op">=</span> <span class="va">violetto</span><span class="op">$</span><span class="va">revision</span><span class="op">)</span></span>
 <span></span>
-<span><span class="kw">for</span> <span class="op">(</span><span class="va">i</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">checkpoints</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_from_pretrained.html">limite_from_pretrained</a></span><span class="op">(</span></span>
-<span>    <span class="va">checkpoints</span><span class="op">$</span><span class="va">model_id</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span>,</span>
-<span>    revision <span class="op">=</span> <span class="va">checkpoints</span><span class="op">$</span><span class="va">revision</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span>,</span>
-<span>    device <span class="op">=</span> <span class="st">"cpu"</span></span>
-<span>  <span class="op">)</span></span>
-<span>  <span class="va">tokenizer</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_tokenizer.html">limite_tokenizer</a></span><span class="op">(</span></span>
-<span>    <span class="va">checkpoints</span><span class="op">$</span><span class="va">model_id</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span>,</span>
-<span>    revision <span class="op">=</span> <span class="va">checkpoints</span><span class="op">$</span><span class="va">revision</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span></span>
-<span>  <span class="op">)</span></span>
-<span>  <span class="va">continuation</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_chat.html">limite_chat</a></span><span class="op">(</span></span>
-<span>    <span class="va">model</span>,</span>
-<span>    <span class="va">messages</span>,</span>
-<span>    tokenizer <span class="op">=</span> <span class="va">tokenizer</span>,</span>
-<span>    max_new_tokens <span class="op">=</span> <span class="fl">8</span>,</span>
-<span>    temperature <span class="op">=</span> <span class="fl">0</span>,</span>
-<span>    eos_token_id <span class="op">=</span> <span class="cn">NULL</span></span>
-<span>  <span class="op">)</span></span>
-<span>  <span class="va">token_ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">continuation</span>, <span class="st">"token_ids"</span><span class="op">)</span></span>
-<span>  <span class="va">checks</span><span class="op">$</span><span class="va">generated_tokens</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">token_ids</span><span class="op">)</span></span>
-<span>  <span class="va">checks</span><span class="op">$</span><span class="va">valid_token_ids</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/all.html" class="external-link">all</a></span><span class="op">(</span></span>
-<span>    <span class="va">token_ids</span> <span class="op">&gt;=</span> <span class="fl">0L</span> <span class="op">&amp;</span> <span class="va">token_ids</span> <span class="op">&lt;</span> <span class="va">model</span><span class="op">$</span><span class="va">config</span><span class="op">$</span><span class="va">vocab_size</span></span>
-<span>  <span class="op">)</span></span>
-<span></span>
-<span>  <span class="kw">if</span> <span class="op">(</span><span class="va">i</span> <span class="op">&lt;</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">checkpoints</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/rm.html" class="external-link">rm</a></span><span class="op">(</span><span class="va">model</span>, <span class="va">tokenizer</span><span class="op">)</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/gc.html" class="external-link">gc</a></span><span class="op">(</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span><span class="op">}</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/all.html" class="external-link">all</a></span><span class="op">(</span><span class="va">checks</span><span class="op">$</span><span class="va">generated_tokens</span> <span class="op">==</span> <span class="fl">8L</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/all.html" class="external-link">all</a></span><span class="op">(</span><span class="va">checks</span><span class="op">$</span><span class="va">valid_token_ids</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="va">checks</span><span class="op">)</span></span></code></pre></div>
-<table class="table">
-<thead><tr>
-<th align="left">checkpoint</th>
-<th align="right">generated_tokens</th>
-<th align="left">valid_token_ids</th>
-</tr></thead>
-<tbody>
-<tr>
-<td align="left">Base</td>
-<td align="right">8</td>
-<td align="left">TRUE</td>
-</tr>
-<tr>
-<td align="left">Base Soup</td>
-<td align="right">8</td>
-<td align="left">TRUE</td>
-</tr>
-<tr>
-<td align="left">Violetto</td>
-<td align="right">8</td>
-<td align="left">TRUE</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="section level2">
-<h2 id="solve-a-problem-with-violetto">Solve a problem with Violetto<a class="anchor" aria-label="anchor" href="#solve-a-problem-with-violetto"></a>
-</h2>
-<p>The final model retained by the preceding evaluated chunk is Violetto. Its published message template wraps the direct single-turn problem. Violetto emits a long reasoning trace; the evaluated example extracts the boxed result from the generated token stream so the landing page stays concise.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">solution</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_chat.html">limite_chat</a></span><span class="op">(</span></span>
+<span><span class="va">messages</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  role <span class="op">=</span> <span class="st">"user"</span>,</span>
+<span>  content <span class="op">=</span> <span class="st">"Compute 17 * 23. Show your reasoning."</span></span>
+<span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">solution</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_chat.html">limite_chat</a></span><span class="op">(</span></span>
 <span>  <span class="va">model</span>,</span>
 <span>  <span class="va">messages</span>,</span>
 <span>  tokenizer <span class="op">=</span> <span class="va">tokenizer</span>,</span>
 <span>  max_new_tokens <span class="op">=</span> <span class="fl">256</span>,</span>
 <span>  temperature <span class="op">=</span> <span class="fl">0</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">boxed_answer</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/regmatches.html" class="external-link">regmatches</a></span><span class="op">(</span></span>
-<span>  <span class="va">solution</span>,</span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">regexpr</a></span><span class="op">(</span><span class="st">"\\\\boxed\\{[^}]+\\}"</span>, <span class="va">solution</span>, perl <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">boxed_answer</span><span class="op">)</span> <span class="op">==</span> <span class="fl">1L</span><span class="op">)</span></span>
-<span><span class="va">boxed_answer</span></span>
-<span><span class="co">#&gt; [1] "\\boxed{391}"</span></span></code></pre></div>
+<span><span class="op">)</span></span></code></pre></div>
+<p>The model reasons before it commits to an answer, so the trace is long. Its opening is the interesting part:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">show_trace</span><span class="op">(</span><span class="va">solution</span><span class="op">)</span></span>
+<span><span class="co">#&gt; &lt;think&gt;We need to compute 17 * 23. The user asks: "Compute 17 * 23. Show your reasoning. Please reason step by step, and put your final answer within \boxed{}."</span></span>
+<span><span class="co">#&gt;</span></span>
+<span><span class="co">#&gt; We need to provide a step-by-step multiplication and final answer in a box. This is straightforward: 17*23 = 17*(20+3) = 340 + 51 = 391. Or 23*10=230, 23*7=161, sum=391. So final answer \boxed{391}.</span></span>
+<span><span class="co">#&gt;</span></span>
+<span><span class="co">#&gt; We need to ensure we follow instructions: reason step by step, final answer within \boxed{}. No extra text outside? It says "put your final answer within \boxed{}". We can include reasoning before that. That's fine.</span></span>
+<span><span class="co">#&gt;</span></span>
+<span><span class="co">#&gt; Thus produce a short reasoning: 17*23 = 17*(20+3) = 17*20 + 17*3 = 340 + 51 = 391. Then final answer \boxed{391}.</span></span>
+<span><span class="co">#&gt;</span></span>
+<span><span class="co">#&gt; We must ensure no disallowed content. It's simple arithmetic</span></span></code></pre></div>
+<p>Weights attach on the meta device and are then bound to the checkpoint tensors, so loading never materializes a second initialized copy of the 1B parameters. The safetensors mapping stays authoritative.</p>
 </div>
 <div class="section level2">
-<h2 id="token-ids-and-model-assets">Token IDs and model assets<a class="anchor" aria-label="anchor" href="#token-ids-and-model-assets"></a>
+<h2 id="the-device-is-an-argument-not-an-architecture">The device is an argument, not an architecture<a class="anchor" aria-label="anchor" href="#the-device-is-an-argument-not-an-architecture"></a>
 </h2>
-<p>Public token IDs are zero-based, matching Hugging Face tokenizers. Rlimite converts them to R torch’s one-based embedding indices only at the model boundary.</p>
-<p>Rlimite does not redistribute model weights. Weight access and use remain subject to the terms attached to the selected model repository.</p>
+<p>The same call runs on either processor. <code>device = "cuda"</code> moves the parameters onto the GPU, and generation follows the weights rather than being rewritten around them:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_from_pretrained.html">limite_from_pretrained</a></span><span class="op">(</span></span>
+<span>  <span class="st">"paradigma-inc/limite-1b-violetto"</span>,</span>
+<span>  device <span class="op">=</span> <span class="st">"cuda"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><code><a href="reference/limite_generate.html">limite_generate()</a></code> reads its device from the embedding weights, so no calling code carries a device argument at all. This page reports whichever processor rendered it, and <code>RLIMITE_README_DEVICE</code> forces the choice:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">prompt</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_chat_prompt.html">limite_chat_prompt</a></span><span class="op">(</span><span class="va">messages</span><span class="op">)</span></span>
+<span><span class="va">prompt_ids</span> <span class="op">&lt;-</span> <span class="va">tokenizer</span><span class="op">$</span><span class="fu">encode</span><span class="op">(</span><span class="va">prompt</span>, add_special_tokens <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">$</span><span class="va">ids</span></span>
+<span></span>
+<span><span class="va">elapsed</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span></span>
+<span>  <span class="va">tokens</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_generate.html">limite_generate</a></span><span class="op">(</span></span>
+<span>    <span class="va">model</span>,</span>
+<span>    <span class="va">prompt_ids</span>,</span>
+<span>    max_new_tokens <span class="op">=</span> <span class="fl">32L</span>,</span>
+<span>    temperature <span class="op">=</span> <span class="fl">0</span>,</span>
+<span>    eos_token_id <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span><span class="op">[[</span><span class="st">"elapsed"</span><span class="op">]</span><span class="op">]</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  device <span class="op">=</span> <span class="va">device</span>,</span>
+<span>  prompt_tokens <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">prompt_ids</span><span class="op">)</span>,</span>
+<span>  new_tokens <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">tokens</span><span class="op">)</span>,</span>
+<span>  seconds <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">elapsed</span>, <span class="fl">1</span><span class="op">)</span>,</span>
+<span>  tokens_per_second <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">tokens</span><span class="op">)</span> <span class="op">/</span> <span class="va">elapsed</span>, <span class="fl">2</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt;   device prompt_tokens new_tokens seconds tokens_per_second</span></span>
+<span><span class="co">#&gt; 1    cpu            33         32      11              2.91</span></span></code></pre></div>
+<p>This is a single warm greedy decode with a key/value cache, not a kernel microbenchmark, and it should be read as such.</p>
+</div>
+<div class="section level2">
+<h2 id="watching-it-decode">Watching it decode<a class="anchor" aria-label="anchor" href="#watching-it-decode"></a>
+</h2>
+<p>Generation is not a black box that returns after a minute. <code><a href="reference/limite_generate.html">limite_generate()</a></code> takes a <code>callback</code> fired on every sampled token, so a solution can stream into the console while it is produced:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="fu"><a href="reference/limite_generate.html">limite_generate</a></span><span class="op">(</span></span>
+<span>  <span class="va">model</span>,</span>
+<span>  <span class="va">prompt_ids</span>,</span>
+<span>  max_new_tokens <span class="op">=</span> <span class="fl">24L</span>,</span>
+<span>  temperature <span class="op">=</span> <span class="fl">0</span>,</span>
+<span>  eos_token_id <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  callback <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="va">tokenizer</span><span class="op">$</span><span class="fu">decode</span><span class="op">(</span><span class="va">id</span>, skip_special_tokens <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; &lt;think&gt;We need to compute 17 * 23. The user asks: "Compute 17 *</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="nothing-has-to-leave-the-machine">Nothing has to leave the machine<a class="anchor" aria-label="anchor" href="#nothing-has-to-leave-the-machine"></a>
+</h2>
+<p>Once a revision is in the Hugging Face cache, <code>local_files_only = TRUE</code> removes the network from the loading path entirely:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_from_pretrained.html">limite_from_pretrained</a></span><span class="op">(</span></span>
+<span>  <span class="st">"paradigma-inc/limite-1b-violetto"</span>,</span>
+<span>  local_files_only <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>The same argument accepts a checkpoint directory or a single <code>.safetensors</code> file, so an air-gapped machine loads weights copied in by hand, and a machine with no Python installation at all is not a special case.</p>
+</div>
+<div class="section level2">
+<h2 id="the-family-is-three-checkpoints-not-one">The family is three checkpoints, not one<a class="anchor" aria-label="anchor" href="#the-family-is-three-checkpoints-not-one"></a>
+</h2>
+<p>All three pinned revisions are loaded and given the same problem, with twelve greedy tokens each. The comparison is the point: the base checkpoints continue text, and only Violetto has been tuned to solve.</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">checkpoints</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_checkpoints.html">limite_checkpoints</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">checkpoints</span><span class="op">$</span><span class="va">opening</span> <span class="op">&lt;-</span> <span class="cn">NA_character_</span></span>
+<span></span>
+<span><span class="kw">for</span> <span class="op">(</span><span class="va">i</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">checkpoints</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">is_violetto</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">checkpoints</span><span class="op">$</span><span class="va">checkpoint</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span>, <span class="st">"Violetto"</span><span class="op">)</span></span>
+<span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="va">is_violetto</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">current_model</span> <span class="op">&lt;-</span> <span class="va">model</span></span>
+<span>    <span class="va">current_tokenizer</span> <span class="op">&lt;-</span> <span class="va">tokenizer</span></span>
+<span>  <span class="op">}</span> <span class="kw">else</span> <span class="op">{</span></span>
+<span>    <span class="va">current_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_from_pretrained.html">limite_from_pretrained</a></span><span class="op">(</span></span>
+<span>      <span class="va">checkpoints</span><span class="op">$</span><span class="va">model_id</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span>,</span>
+<span>      revision <span class="op">=</span> <span class="va">checkpoints</span><span class="op">$</span><span class="va">revision</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span>,</span>
+<span>      device <span class="op">=</span> <span class="va">device</span></span>
+<span>    <span class="op">)</span></span>
+<span>    <span class="va">current_tokenizer</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_tokenizer.html">limite_tokenizer</a></span><span class="op">(</span></span>
+<span>      <span class="va">checkpoints</span><span class="op">$</span><span class="va">model_id</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span>,</span>
+<span>      revision <span class="op">=</span> <span class="va">checkpoints</span><span class="op">$</span><span class="va">revision</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span></span>
+<span>    <span class="op">)</span></span>
+<span>  <span class="op">}</span></span>
+<span></span>
+<span>  <span class="va">ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_generate.html">limite_generate</a></span><span class="op">(</span></span>
+<span>    <span class="va">current_model</span>,</span>
+<span>    <span class="va">prompt_ids</span>,</span>
+<span>    max_new_tokens <span class="op">=</span> <span class="fl">12L</span>,</span>
+<span>    temperature <span class="op">=</span> <span class="fl">0</span>,</span>
+<span>    eos_token_id <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  <span class="op">)</span></span>
+<span>  <span class="va">checkpoints</span><span class="op">$</span><span class="va">opening</span><span class="op">[[</span><span class="va">i</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">current_tokenizer</span><span class="op">$</span><span class="fu">decode</span><span class="op">(</span></span>
+<span>    <span class="va">ids</span>,</span>
+<span>    skip_special_tokens <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  <span class="op">)</span></span>
+<span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="va">is_violetto</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/rm.html" class="external-link">rm</a></span><span class="op">(</span><span class="va">current_model</span>, <span class="va">current_tokenizer</span><span class="op">)</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/gc.html" class="external-link">gc</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>  <span class="op">}</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<table class="table">
+<colgroup>
+<col width="10%">
+<col width="16%">
+<col width="38%">
+<col width="34%">
+</colgroup>
+<thead><tr>
+<th align="left">checkpoint</th>
+<th align="left">profile</th>
+<th align="left">revision</th>
+<th align="left">opening</th>
+</tr></thead>
+<tbody>
+<tr>
+<td align="left">Base</td>
+<td align="left">base</td>
+<td align="left">c55f6dd9741d89b88186235c6d43bff367ae3cb0</td>
+<td align="left">To compute 17 * 23, we can</td>
+</tr>
+<tr>
+<td align="left">Base Soup</td>
+<td align="left">base-soup</td>
+<td align="left">9ade12f28483ec61896427bb983719501325e275</td>
+<td align="left">You are a helpful assistant. 23 * 1</td>
+</tr>
+<tr>
+<td align="left">Violetto</td>
+<td align="left">math-single-turn</td>
+<td align="left">e47321c08d6820a0b2491bc8a10381999f2d0cde</td>
+<td align="left"><think>We need to compute 17 * 23</think></td>
+</tr>
+</tbody>
+</table>
+<p>The revisions are immutable commit hashes rather than <code>main</code>, so this table and the real-model CI matrix describe the same three artifacts.</p>
+</div>
+<div class="section level2">
+<h2 id="what-the-architecture-actually-required">What the architecture actually required<a class="anchor" aria-label="anchor" href="#what-the-architecture-actually-required"></a>
+</h2>
+<p>The shared checkpoint contract is 48 decoder layers, grouped-query attention, mixed global and sliding-window layers, and a 131,072-token context.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co">#&gt;              vocab_size             hidden_size       num_hidden_layers</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="co">#&gt;                  151680                    1280                      48</span></span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="co">#&gt;     num_attention_heads     num_key_value_heads max_position_embeddings</span></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="co">#&gt;                      10                       2                  131072</span></span></code></pre></div>
+<p>None of the following is optional for numerical agreement with the published checkpoints, and each is implemented in R rather than deferred to a kernel library:</p>
+<ul>
+<li>partial interleaved RoPE, with NoPE on the global layers</li>
+<li>value embeddings and per-head attention gates</li>
+<li>cross-stream attention</li>
+<li>MUDD history mixing with learned taps</li>
+<li>learned residual coefficients, and projection-scale folding at load time</li>
+<li>sigmoid-softcapped logits</li>
+<li>bounded key/value caches on the sliding-window layers</li>
+</ul>
+<p>Public token IDs stay zero-based, matching the Hugging Face tokenizers. The conversion to R torch’s one-based embedding indices happens only at the model boundary, so IDs handed to <code><a href="reference/limite_generate.html">limite_generate()</a></code> and read back from the <code>token_ids</code> attribute line up with the Hub tokenizer exactly.</p>
+</div>
+<div class="section level2">
+<h2 id="what-is-not-measured-yet">What is not measured yet<a class="anchor" aria-label="anchor" href="#what-is-not-measured-yet"></a>
+</h2>
+<p>The throughput table above reports one device: the one that rendered the page. A CPU-versus-CUDA comparison on the same prompt, the same revision and the same decode length is the honest next measurement, and it is not in this README because it has not been run. Attention is a dense materialized product here rather than a fused kernel, and no claim is made about how this stack compares with a tuned serving runtime on the same weights. Those numbers belong here once they exist.</p>
+</div>
+<div class="section level2">
+<h2 id="model-weights">Model weights<a class="anchor" aria-label="anchor" href="#model-weights"></a>
+</h2>
+<p>Rlimite does not redistribute model weights. Access to and use of the checkpoints remain subject to the terms attached to the selected model repository.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">
@@ -256,7 +309,15 @@
 </ul>
 </div>
 
-
+<div class="dev-status">
+<h2 data-toc-skip>Dev status</h2>
+<ul class="list-unstyled">
+<li><a href="https://github.com/sounkou-bioinfo/Rlimite/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/sounkou-bioinfo/Rlimite/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
+<li><a href="https://github.com/sounkou-bioinfo/Rlimite/actions/workflows/real-model.yaml" class="external-link"><img src="https://github.com/sounkou-bioinfo/Rlimite/actions/workflows/real-model.yaml/badge.svg" alt="Real model tests"></a></li>
+<li><a href="https://sounkou-bioinfo.r-universe.dev/Rlimite" class="external-link"><img src="https://sounkou-bioinfo.r-universe.dev/badges/Rlimite" alt="R-universe"></a></li>
+<li><a href="https://lifecycle.r-lib.org/articles/stages.html#experimental" class="external-link"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental"></a></li>
+</ul>
+</div>
 
   </aside>
 </div>
