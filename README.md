@@ -120,30 +120,60 @@ choice:
 ``` r
 prompt <- limite_chat_prompt(messages)
 prompt_ids <- tokenizer$encode(prompt, add_special_tokens = FALSE)$ids
-
-elapsed <- system.time(
-  tokens <- limite_generate(
-    model,
-    prompt_ids,
-    max_new_tokens = 32L,
-    temperature = 0,
-    eos_token_id = NULL
-  )
-)[["elapsed"]]
-
-data.frame(
-  device = device,
-  prompt_tokens = length(prompt_ids),
-  new_tokens = length(tokens),
-  seconds = round(elapsed, 1),
-  tokens_per_second = round(length(tokens) / elapsed, 2)
-)
-#>   device prompt_tokens new_tokens seconds tokens_per_second
-#> 1    cpu            33         32      11              2.91
 ```
 
-This is a single warm greedy decode with a key/value cache, not a kernel
-microbenchmark, and it should be read as such.
+A single tokens-per-second figure would average two different machines.
+The prompt is consumed in one batched forward pass, while each new token
+is a forward pass over a batch of one. Reporting their mean describes
+neither, so they are measured apart.
+
+The `callback` is the seam. It fires after the prefill pass has produced
+its logits and before the first single-token pass begins, so the first
+timestamp divides the phases exactly. Sampling calls `$item()`, which is
+a device-to-host transfer, so these marks are already synchronized on
+CUDA as well as on CPU.
+
+``` r
+limite_decode_profile <- function(model, input_ids, max_new_tokens = 32L) {
+  marks <- numeric(0)
+  started <- proc.time()[["elapsed"]]
+  limite_generate(
+    model,
+    input_ids,
+    max_new_tokens = max_new_tokens,
+    temperature = 0,
+    eos_token_id = NULL,
+    callback = function(id) marks[[length(marks) + 1L]] <<- proc.time()[["elapsed"]]
+  )
+  prefill <- marks[[1L]] - started
+  decode <- marks[[length(marks)]] - marks[[1L]]
+  decoded <- length(marks) - 1L
+
+  data.frame(
+    phase = c("prefill", "decode"),
+    tokens = c(length(input_ids), decoded),
+    seconds = round(c(prefill, decode), 2),
+    tokens_per_second = round(c(length(input_ids) / prefill, decoded / decode), 1)
+  )
+}
+
+# Warm the allocator and the cache so the first pass is not being timed.
+invisible(limite_generate(
+  model, prompt_ids,
+  max_new_tokens = 2L, temperature = 0, eos_token_id = NULL
+))
+
+cbind(device = device, limite_decode_profile(model, prompt_ids, 32L))
+#>   device   phase tokens seconds tokens_per_second
+#> 1    cpu prefill     33    0.89              37.0
+#> 2    cpu  decode     31    9.17               3.4
+```
+
+The ratio is the useful part. Prefill amortizes 48 layers over the whole
+prompt at once; decode pays for all of them per token, and that cost is
+what a reader waiting on a long reasoning trace actually experiences.
+These are single warm greedy runs with a key/value cache, not kernel
+microbenchmarks, and the decode figure is the one to quote.
 
 ## Watching it decode
 
@@ -267,13 +297,27 @@ from the `token_ids` attribute line up with the Hub tokenizer exactly.
 
 ## What is not measured yet
 
-The throughput table above reports one device: the one that rendered the
-page. A CPU-versus-CUDA comparison on the same prompt, the same revision
-and the same decode length is the honest next measurement, and it is not
-in this README because it has not been run. Attention is a dense
-materialized product here rather than a fused kernel, and no claim is
-made about how this stack compares with a tuned serving runtime on the
-same weights. Those numbers belong here once they exist.
+The profile above reports one device: the one that rendered the page.
+The same table on CUDA, for the same prompt, revision and decode length,
+is the honest next measurement, and it is absent because it has not been
+run rather than because it is unflattering.
+
+Decode is also the phase least like a solved problem here, and the
+reason is not the arithmetic. Sampling a decode step on an AVX2 desktop
+CPU under `Rprof()` puts only about a quarter of the time inside
+`torch_linear`; the largest remaining share is R’s own method dispatch,
+`NextMethod`, `[[.nn_Module`, `$.R7` and `find_method`, walking module
+attributes once per layer per token, forty-eight layers deep. Casting
+weights to `float32` makes it slower rather than faster, so the dtype is
+not the lever either.
+
+That cost is structural rather than mysterious: the architecture is
+expressed as R modules, and every token re-enters the interpreter to
+walk them. Resolving those lookups once at load time, or tracing the
+decode step, is real work that has not been done, and no claim is made
+here about how this stack compares with a tuned serving runtime on the
+same weights. A respectable prefill number does not redeem the decode
+number. Both belong in the table for that reason.
 
 ## Model weights
 

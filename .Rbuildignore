@@ -5,5 +5,4 @@
 ^Makefile$
 ^_pkgdown\.yml$
 ^tools$
-^README_cache$
 ^README\.Rmd$
