@@ -118,34 +118,50 @@
 <p><code><a href="reference/limite_generate.html">limite_generate()</a></code> reads its device from the embedding weights, so no calling code carries a device argument at all. This page reports whichever processor rendered it, and <code>RLIMITE_README_DEVICE</code> forces the choice:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">prompt</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_chat_prompt.html">limite_chat_prompt</a></span><span class="op">(</span><span class="va">messages</span><span class="op">)</span></span>
-<span><span class="va">prompt_ids</span> <span class="op">&lt;-</span> <span class="va">tokenizer</span><span class="op">$</span><span class="fu">encode</span><span class="op">(</span><span class="va">prompt</span>, add_special_tokens <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">$</span><span class="va">ids</span></span>
-<span></span>
-<span><span class="va">elapsed</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span></span>
-<span>  <span class="va">tokens</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_generate.html">limite_generate</a></span><span class="op">(</span></span>
+<span><span class="va">prompt_ids</span> <span class="op">&lt;-</span> <span class="va">tokenizer</span><span class="op">$</span><span class="fu">encode</span><span class="op">(</span><span class="va">prompt</span>, add_special_tokens <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">$</span><span class="va">ids</span></span></code></pre></div>
+<p>A single tokens-per-second figure would average two different machines. The prompt is consumed in one batched forward pass, while each new token is a forward pass over a batch of one. Reporting their mean describes neither, so they are measured apart.</p>
+<p>The <code>callback</code> is the seam. It fires after the prefill pass has produced its logits and before the first single-token pass begins, so the first timestamp divides the phases exactly. Sampling calls <code>$item()</code>, which is a device-to-host transfer, so these marks are already synchronized on CUDA as well as on CPU.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">limite_decode_profile</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">model</span>, <span class="va">input_ids</span>, <span class="va">max_new_tokens</span> <span class="op">=</span> <span class="fl">32L</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">marks</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">numeric</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span></span>
+<span>  <span class="va">started</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/proc.time.html" class="external-link">proc.time</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="st">"elapsed"</span><span class="op">]</span><span class="op">]</span></span>
+<span>  <span class="fu"><a href="reference/limite_generate.html">limite_generate</a></span><span class="op">(</span></span>
 <span>    <span class="va">model</span>,</span>
-<span>    <span class="va">prompt_ids</span>,</span>
-<span>    max_new_tokens <span class="op">=</span> <span class="fl">32L</span>,</span>
+<span>    <span class="va">input_ids</span>,</span>
+<span>    max_new_tokens <span class="op">=</span> <span class="va">max_new_tokens</span>,</span>
 <span>    temperature <span class="op">=</span> <span class="fl">0</span>,</span>
-<span>    eos_token_id <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>    eos_token_id <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>    callback <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span><span class="op">)</span> <span class="va">marks</span><span class="op">[[</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">marks</span><span class="op">)</span> <span class="op">+</span> <span class="fl">1L</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/proc.time.html" class="external-link">proc.time</a></span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="st">"elapsed"</span><span class="op">]</span><span class="op">]</span></span>
 <span>  <span class="op">)</span></span>
-<span><span class="op">)</span><span class="op">[[</span><span class="st">"elapsed"</span><span class="op">]</span><span class="op">]</span></span>
+<span>  <span class="va">prefill</span> <span class="op">&lt;-</span> <span class="va">marks</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span> <span class="op">-</span> <span class="va">started</span></span>
+<span>  <span class="va">decode</span> <span class="op">&lt;-</span> <span class="va">marks</span><span class="op">[[</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">marks</span><span class="op">)</span><span class="op">]</span><span class="op">]</span> <span class="op">-</span> <span class="va">marks</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>
+<span>  <span class="va">decoded</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">marks</span><span class="op">)</span> <span class="op">-</span> <span class="fl">1L</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  device <span class="op">=</span> <span class="va">device</span>,</span>
-<span>  prompt_tokens <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">prompt_ids</span><span class="op">)</span>,</span>
-<span>  new_tokens <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">tokens</span><span class="op">)</span>,</span>
-<span>  seconds <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">elapsed</span>, <span class="fl">1</span><span class="op">)</span>,</span>
-<span>  tokens_per_second <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">tokens</span><span class="op">)</span> <span class="op">/</span> <span class="va">elapsed</span>, <span class="fl">2</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt;   device prompt_tokens new_tokens seconds tokens_per_second</span></span>
-<span><span class="co">#&gt; 1    cpu            33         32      11              2.91</span></span></code></pre></div>
-<p>This is a single warm greedy decode with a key/value cache, not a kernel microbenchmark, and it should be read as such.</p>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>    phase <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"prefill"</span>, <span class="st">"decode"</span><span class="op">)</span>,</span>
+<span>    tokens <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">input_ids</span><span class="op">)</span>, <span class="va">decoded</span><span class="op">)</span>,</span>
+<span>    seconds <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">prefill</span>, <span class="va">decode</span><span class="op">)</span>, <span class="fl">2</span><span class="op">)</span>,</span>
+<span>    tokens_per_second <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">input_ids</span><span class="op">)</span> <span class="op">/</span> <span class="va">prefill</span>, <span class="va">decoded</span> <span class="op">/</span> <span class="va">decode</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="co"># Warm the allocator and the cache so the first pass is not being timed.</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="fu"><a href="reference/limite_generate.html">limite_generate</a></span><span class="op">(</span></span>
+<span>  <span class="va">model</span>, <span class="va">prompt_ids</span>,</span>
+<span>  max_new_tokens <span class="op">=</span> <span class="fl">2L</span>, temperature <span class="op">=</span> <span class="fl">0</span>, eos_token_id <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span>device <span class="op">=</span> <span class="va">device</span>, <span class="fu">limite_decode_profile</span><span class="op">(</span><span class="va">model</span>, <span class="va">prompt_ids</span>, <span class="fl">32L</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   device   phase tokens seconds tokens_per_second</span></span>
+<span><span class="co">#&gt; 1    cpu prefill     33    0.89              37.0</span></span>
+<span><span class="co">#&gt; 2    cpu  decode     31    9.17               3.4</span></span></code></pre></div>
+<p>The ratio is the useful part. Prefill amortizes 48 layers over the whole prompt at once; decode pays for all of them per token, and that cost is what a reader waiting on a long reasoning trace actually experiences. These are single warm greedy runs with a key/value cache, not kernel microbenchmarks, and the decode figure is the one to quote.</p>
 </div>
 <div class="section level2">
 <h2 id="watching-it-decode">Watching it decode<a class="anchor" aria-label="anchor" href="#watching-it-decode"></a>
 </h2>
 <p>Generation is not a black box that returns after a minute. <code><a href="reference/limite_generate.html">limite_generate()</a></code> takes a <code>callback</code> fired on every sampled token, so a solution can stream into the console while it is produced:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="fu"><a href="reference/limite_generate.html">limite_generate</a></span><span class="op">(</span></span>
 <span>  <span class="va">model</span>,</span>
 <span>  <span class="va">prompt_ids</span>,</span>
@@ -160,7 +176,7 @@
 <h2 id="nothing-has-to-leave-the-machine">Nothing has to leave the machine<a class="anchor" aria-label="anchor" href="#nothing-has-to-leave-the-machine"></a>
 </h2>
 <p>Once a revision is in the Hugging Face cache, <code>local_files_only = TRUE</code> removes the network from the loading path entirely:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_from_pretrained.html">limite_from_pretrained</a></span><span class="op">(</span></span>
 <span>  <span class="st">"paradigma-inc/limite-1b-violetto"</span>,</span>
 <span>  local_files_only <span class="op">=</span> <span class="cn">TRUE</span></span>
@@ -171,7 +187,7 @@
 <h2 id="the-family-is-three-checkpoints-not-one">The family is three checkpoints, not one<a class="anchor" aria-label="anchor" href="#the-family-is-three-checkpoints-not-one"></a>
 </h2>
 <p>All three pinned revisions are loaded and given the same problem, with twelve greedy tokens each. The comparison is the point: the base checkpoints continue text, and only Violetto has been tuned to solve.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">checkpoints</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/limite_checkpoints.html">limite_checkpoints</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">checkpoints</span><span class="op">$</span><span class="va">opening</span> <span class="op">&lt;-</span> <span class="cn">NA_character_</span></span>
 <span></span>
@@ -250,10 +266,10 @@
 <h2 id="what-the-architecture-actually-required">What the architecture actually required<a class="anchor" aria-label="anchor" href="#what-the-architecture-actually-required"></a>
 </h2>
 <p>The shared checkpoint contract is 48 decoder layers, grouped-query attention, mixed global and sliding-window layers, and a 131,072-token context.</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co">#&gt;              vocab_size             hidden_size       num_hidden_layers</span></span>
-<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="co">#&gt;                  151680                    1280                      48</span></span>
-<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="co">#&gt;     num_attention_heads     num_key_value_heads max_position_embeddings</span></span>
-<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="co">#&gt;                      10                       2                  131072</span></span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co">#&gt;              vocab_size             hidden_size       num_hidden_layers</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="co">#&gt;                  151680                    1280                      48</span></span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="co">#&gt;     num_attention_heads     num_key_value_heads max_position_embeddings</span></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="co">#&gt;                      10                       2                  131072</span></span></code></pre></div>
 <p>None of the following is optional for numerical agreement with the published checkpoints, and each is implemented in R rather than deferred to a kernel library:</p>
 <ul>
 <li>partial interleaved RoPE, with NoPE on the global layers</li>
@@ -269,7 +285,9 @@
 <div class="section level2">
 <h2 id="what-is-not-measured-yet">What is not measured yet<a class="anchor" aria-label="anchor" href="#what-is-not-measured-yet"></a>
 </h2>
-<p>The throughput table above reports one device: the one that rendered the page. A CPU-versus-CUDA comparison on the same prompt, the same revision and the same decode length is the honest next measurement, and it is not in this README because it has not been run. Attention is a dense materialized product here rather than a fused kernel, and no claim is made about how this stack compares with a tuned serving runtime on the same weights. Those numbers belong here once they exist.</p>
+<p>The profile above reports one device: the one that rendered the page. The same table on CUDA, for the same prompt, revision and decode length, is the honest next measurement, and it is absent because it has not been run rather than because it is unflattering.</p>
+<p>Decode is also the phase least like a solved problem here, and the reason is not the arithmetic. Sampling a decode step on an AVX2 desktop CPU under <code><a href="https://rdrr.io/r/utils/Rprof.html" class="external-link">Rprof()</a></code> puts only about a quarter of the time inside <code>torch_linear</code>; the largest remaining share is R’s own method dispatch, <code>NextMethod</code>, <code>[[.nn_Module</code>, <code>$.R7</code> and <code>find_method</code>, walking module attributes once per layer per token, forty-eight layers deep. Casting weights to <code>float32</code> makes it slower rather than faster, so the dtype is not the lever either.</p>
+<p>That cost is structural rather than mysterious: the architecture is expressed as R modules, and every token re-enters the interpreter to walk them. Resolving those lookups once at load time, or tracing the decode step, is real work that has not been done, and no claim is made here about how this stack compares with a tuned serving runtime on the same weights. A respectable prefill number does not redeem the decode number. Both belong in the table for that reason.</p>
 </div>
 <div class="section level2">
 <h2 id="model-weights">Model weights<a class="anchor" aria-label="anchor" href="#model-weights"></a>
